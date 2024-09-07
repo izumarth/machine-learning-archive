@@ -266,3 +266,108 @@ print(f"The space state is of type: {env.observation_space}")
 print(f"An example of a valid action is: {env.action_space.sample()}")
 print(f"The action state is of type: {env.action_space}")
 
+# Trajectories and episoeds
+
+state = env.reset()
+trajectory = []
+
+for _ in range(3):
+  action = env.action_space.sample()
+  next_state, reward, done, info = env.step(action)
+  trajectory.append([state, action, reward, done, info, next_state])
+  state = next_state
+
+print(f"rejectory:\n{trajectory}")
+
+frame = env.render(mode='rgb_array')
+plt.axis('off')
+plt.title(f'State: {trajectory}')
+plt.imshow(frame)
+
+# episode(goal)まで実行
+state = env.reset()
+episode = []
+done = False
+
+while not done:
+  action = env.action_space.sample()
+  next_state, reward, done, info = env.step(action)
+  trajectory.append([state, action, reward, done, info, next_state])
+  state = next_state
+
+print(f"rejectory:\n{trajectory}")
+
+frame = env.render(mode='rgb_array')
+plt.axis('off')
+plt.imshow(frame)
+
+# rewards
+state = env.reset()
+action = env.action_space.sample()
+_, reward, _, _ = env.step(action)
+
+print(f"{reward=} {action=} {state=}")
+
+# return
+state = env.reset()
+episode = []
+done = False
+gamma = 0.99 # 割引価値
+G_0 = 0 # return
+t = 0 # time
+
+while not done:
+  action = env.action_space.sample()
+  _, reward, done, _ = env.step(action)
+  G_0 += gamma ** t * reward
+  t +=1
+
+
+print(
+    f"""It took us {t} moves to find the exit,
+    and each reward r(s,a)=-1, so the return amounts to {G_0}""")
+
+# Policy
+# 戦略は各選択肢を選ぶ確率分布であるため、ここでは一様分布と　とした
+
+def random_policy(state):
+    return np.array([0.25] * 4)
+
+# Policyに基づいた行動を実施
+env = Maze()
+state = env.reset()
+action_probabilities = random_policy(state)
+
+objects = ['Up', 'Right', 'Down', 'Left']
+y_pos = np.arange(len(objects))
+
+plt.bar(y_pos, action_probabilities, alpha=0.5)
+plt.xticks(y_pos, objects)
+plt.ylabel('P(a | s)')
+plt.title('Random Policy')
+plt.tight_layout()
+
+plt.show()
+
+env.reset()
+done = False
+img = plt.imshow(env.render(mode='rgb_array'))
+gamma = 0.99 # 割引価値
+G_0 = 0 # return
+t = 0 # time
+
+while not done:
+  action = np.random.choice(range(4), 1, p=action_probabilities)
+  _, reward, done, _ = env.step(action)
+  G_0 += gamma ** t * reward
+  t +=1
+  img.set_data(env.render(mode='rgb_array'))
+  plt.axis('off')
+  display.display(plt.gcf())
+  display.clear_output(wait=True)
+
+
+print(
+    f"""It took us {t} moves to find the exit,
+    and each reward r(s,a)=-1, so the return amounts to {G_0}""")
+
