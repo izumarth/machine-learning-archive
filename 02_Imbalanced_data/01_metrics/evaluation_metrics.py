@@ -18,9 +18,20 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    classification_report,
+)
 
 from imblearn.datasets import fetch_datasets
+
+from yellowbrick.classifier import (
+    ClassificationReport,
+    DiscriminationThreshold,
+)
 
 """## Accuracy"""
 
@@ -89,10 +100,58 @@ print(f"{return_minority_perc(y_test, lr.predict(X_test))=}")
 
 ### Recall
 - Recall: TP / (TP + FN)
+  - Recall = TP / All real positves
 - Precision: TP / (TP + FP)
+  - Precision = TP / All Positive predictions
 
 ### F-measure
 - (2 * Precsion * Recall) / (Precision + Recall)
 """
 
-#
+#Precision
+print(f'Precision Baseline {precision_score(y_test, y_test_base)}')
+print(f'Precision Randomforest {precision_score(y_test, rf.predict(X_test))}')
+print(f'Precision Logistic Regression {precision_score(y_test, lr.predict(X_test))}')
+
+#Recall
+print(f'Precision Baseline {recall_score(y_test, y_test_base)}')
+print(f'Precision Randomforest {recall_score(y_test, rf.predict(X_test))}')
+print(f'Precision Logistic Regression {recall_score(y_test, lr.predict(X_test))}')
+
+#F1 Score
+print(f'Precision Baseline {f1_score(y_test, y_test_base, pos_label=1)}')
+print(f'Precision Randomforest {f1_score(y_test, rf.predict(X_test), pos_label=1)}')
+print(f'Precision Logistic Regression {f1_score(y_test, lr.predict(X_test), pos_label=1)}')
+
+print(classification_report(y_test, rf.predict(X_test)))
+
+print(classification_report(y_test, lr.predict(X_test)))
+
+visualizer = DiscriminationThreshold(
+    lr,
+    n_trials=1,
+    argmax='fscore',
+    random_state=42,
+    is_fitted='auto',
+    exclude="queue_rate"
+)
+
+visualizer.fit(X_train, y_train)
+visualizer.score(X_test, y_test)
+visualizer.show()
+
+visualizer = DiscriminationThreshold(
+    rf,
+    n_trials=1,
+    argmax='fscore',
+    random_state=42,
+    is_fitted='auto',
+    exclude="queue_rate"
+)
+
+visualizer.fit(X_train, y_train)
+visualizer.score(X_test, y_test)
+visualizer.show()
+
+
+
