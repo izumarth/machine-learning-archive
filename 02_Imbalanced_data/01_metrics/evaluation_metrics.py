@@ -20,18 +20,36 @@ from sklearn.model_selection import train_test_split
 
 from sklearn.metrics import (
     accuracy_score,
+    balanced_accuracy_score,
     precision_score,
     recall_score,
     f1_score,
     classification_report,
+    confusion_matrix,
+    roc_auc_score,
+    roc_curve,
+    RocCurveDisplay,
+    precision_recall_curve,
+    PrecisionRecallDisplay,
+    average_precision_score,
+    auc,
 )
 
 from imblearn.datasets import fetch_datasets
 
+from imblearn.metrics import(
+    geometric_mean_score,
+    make_index_balanced_accuracy,
+)
+
 from yellowbrick.classifier import (
     ClassificationReport,
     DiscriminationThreshold,
+    ROCAUC,
 )
+
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 """## Accuracy"""
 
@@ -153,5 +171,138 @@ visualizer.fit(X_train, y_train)
 visualizer.score(X_test, y_test)
 visualizer.show()
 
+"""## Confusion Matrix"""
 
+confusion_matrix(y_test, y_test_base, labels=[-1, 1])
+
+confusion_matrix(y_test, rf.predict(X_test), labels=[-1, 1])
+
+confusion_matrix(y_test, lr.predict(X_test), labels=[-1, 1])
+
+tn, fp, fn, tp = confusion_matrix(y_test, y_test_base, labels=[-1, 1]).ravel()
+
+FPR = fp / (tn + fp)
+FNR = fn / (tp + fn)
+
+print(f"{FPR=}")
+print(f"{FNR=}")
+
+tn, fp, fn, tp = confusion_matrix(y_test, rf.predict(X_test), labels=[-1, 1]).ravel()
+
+FPR = fp / (tn + fp)
+FNR = fn / (tp + fn)
+
+print(f"{FPR=}")
+print(f"{FNR=}")
+
+tn, fp, fn, tp = confusion_matrix(y_test, lr.predict(X_test), labels=[-1, 1]).ravel()
+
+FPR = fp / (tn + fp)
+FNR = fn / (tp + fn)
+
+print(f"{FPR=}")
+print(f"{FNR=}")
+
+cm = confusion_matrix(y_test, rf.predict(X_test), labels=[-1, 1])
+
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
+            xticklabels=['-1', '1'], yticklabels=['-1', '1'])
+plt.ylabel('True Label')
+plt.xlabel('Predicted Label')
+plt.title('Confusion Matrix')
+plt.show()
+
+"""## Balanced Accuracy
+
+- Balanced Accuracy = (Recall_0 + Recall_1) / 2
+"""
+
+print(f"{balanced_accuracy_score(y_test, y_test_base)=}")
+print(f"{balanced_accuracy_score(y_test, rf.predict(X_test))=}")
+print(f"{balanced_accuracy_score(y_test, lr.predict(X_test))=}")
+
+"""## Geometric mean(幾何平均)
+- 各クラスの精度を最大化する時に利用
+- sqrt(Recall(TPR) * TNR) -> sqrt(sensitivity * specifity)
+
+## Dominace
+- range -1 to 1
+  - 1 -> minority positve class の識別が完璧
+  - -1は最悪
+- Recall(TPR) - TNR
+
+## Index of imbalanced accuracy(IBA)
+- IBA = (1 + alpha * Dominance) * M
+"""
+
+# recall
+print(f"{recall_score(y_test, y_test_base)=}")
+print(f"{recall_score(y_test, rf.predict(X_test))=}")
+print(f"{recall_score(y_test, lr.predict(X_test))=}")
+
+# TNR
+print(f"{recall_score(y_test, y_test_base, pos_label=-1)=}")
+print(f"{recall_score(y_test, rf.predict(X_test), pos_label=-1)=}")
+print(f"{recall_score(y_test, lr.predict(X_test), pos_label=-1)=}")
+
+# Geometric mean
+print(f"{geometric_mean_score(y_test, y_test_base)=}")
+print(f"{geometric_mean_score(y_test, rf.predict(X_test))=}")
+print(f"{geometric_mean_score(y_test, lr.predict(X_test))=}")
+
+# Dominance
+def dominance(y_true, y_pred):
+  tpr = recall_score(y_true, y_pred)
+  tnr = recall_score(y_true, y_pred, pos_label=-1)
+  return tpr - tnr
+
+print(f"{dominance(y_test, y_test_base)=}")
+print(f"{dominance(y_test, rf.predict(X_test))=}")
+print(f"{dominance(y_test, lr.predict(X_test))=}")
+
+iba = make_index_balanced_accuracy(alpha=0.5, squared=True) (geometric_mean_score)
+
+print(f"{iba(y_test, y_test_base)=}")
+print(f"{iba(y_test, rf.predict(X_test))=}")
+print(f"{iba(y_test, lr.predict(X_test))=}")
+
+iba_accuracy = make_index_balanced_accuracy(alpha=0.5, squared=True) (accuracy_score)
+
+print(f"{iba_accuracy(y_test, y_test_base)=}")
+print(f"{iba_accuracy(y_test, rf.predict(X_test))=}")
+print(f"{iba_accuracy(y_test, lr.predict(X_test))=}")
+
+"""## ROC Curve
+- Y: TP Rate, X: FP RateでPlotした曲線
+- AUC -> ROCの下側の面接
+  - 完璧なモデルはAUC=1(左上に張り付く）
+  - Random modelはAUC=0.5
+- 異なるモデルのROC Curveを書いた場合に、その曲線が交差する場合は比較できない
+
+"""
+
+# ROC-AUC
+print(f"{roc_auc_score(y_test, y_test_base)=}")
+print(f"{roc_auc_score(y_test, rf.predict(X_test))=}")
+print(f"{roc_auc_score(y_test, lr.predict(X_test))=}")
+
+rf_disp = RocCurveDisplay.from_estimator(rf, X_test, y_test)
+logit_disp = RocCurveDisplay.from_estimator(lr, X_test, y_test)
+
+ax = plt.gca()
+rf_disp.plot(ax=ax, alpha=0.8)
+logit_disp.plot(ax=ax, alpha=0.8)
+
+"""## Precsion Recall Curve"""
+
+rf_disp = PrecisionRecallDisplay.from_estimator(rf, X_test, y_test, plot_chance_level=True)
+_ = rf_disp.ax_.set_title("2-class Precision-Recall curve")
+
+lr_disp = PrecisionRecallDisplay.from_estimator(lr, X_test, y_test, plot_chance_level=True)
+_ = lr_disp.ax_.set_title("2-class Precision-Recall curve")
+
+precision, recall ,threshold = precision_recall_curve(y_test, rf.predict(X_test))
+
+auc_logit = auc(recall, precision)
+print(f"{auc_logit}")
 
