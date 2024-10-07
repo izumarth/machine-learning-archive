@@ -11,13 +11,18 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from collections import Counter
+
 from sklearn.datasets import make_classification
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score, average_precision_score
+from sklearn.model_selection import train_test_split, cross_validate
+from sklearn.preprocessing import MinMaxScaler
 
 from imblearn.under_sampling import RandomUnderSampler
 from imblearn.datasets import fetch_datasets
+
+from imblearn.pipeline import make_pipeline
 
 from imblearn.under_sampling import CondensedNearestNeighbour
 from imblearn.under_sampling import TomekLinks
@@ -193,38 +198,98 @@ cnn = CondensedNearestNeighbour(
 
 X_resampled, y_resampled = cnn.fit_resample(X_train, y_train)
 
-# original
-sns.scatterplot(data=X_train, x="-1",y="1",hue=y_train)
-plt.title('Original data')
+"""# Setting up a classifier with under-sampling and CV"""
 
-sns.scatterplot(data=X_resampled, x="-1",y="1",hue=y_resampled)
-plt.title('Undersampling data')
+datasets_ls = [
+    'car_eval_34',
+    'ecoli',
+    'thyroid_sick',
+    'arrhythmia',
+    'ozone_level'
+]
 
-run_randomForests(X_resampled, X_test, y_resampled, y_test)
+for dataset in datasets_ls:
+    data = fetch_datasets()[dataset]
+    print(dataset)
+    print(Counter(data.target))
+    print()
 
-"""# Tomek Links
+def run_model(X_train, y_train, undersampler=None):
 
-- 境界線のデータを削除する
-- モデルパフォーマンスに悪影響を与えるのであまりつかいたくない。。。
-"""
+    rf = RandomForestClassifier(
+            n_estimators=100, random_state=39, max_depth=3, n_jobs=4
+        )
 
-X_train, X_test, y_train, y_test = train_test_split(
-    data.drop(labels=['target'], axis=1),
-    data['target'],
-    test_size=0.3,
-    random_state=0)
+    scaler = MinMaxScaler()
 
-X_train.shape, X_test.shape
+    if not undersampler:
+        model = rf
 
-tl = TomekLinks(
-    sampling_strategy='auto',
-    n_jobs=4)
+    else:
+        model = make_pipeline(
+            scaler,
+            undersampler,
+            rf,
+        )
 
-X_resampled, y_resampled = tl.fit_resample(X_train, y_train)
+    cv_results = cross_validate(
+        model,
+        X_train,
+        y_train,
+        scoring="average_precision",
+        cv=3,
+    )
 
-sns.scatterplot(data=X_train, x="-1",y="1",hue=y_train)
-plt.title('Original data')
+    print(
+        'Random Forests average precision: {0} +/- {1}'.format(
+        cv_results['test_score'].mean(), cv_results['test_score'].std()
+        )
+    )
 
-sns.scatterplot(data=X_resampled, x="-1",y="1",hue=y_resampled)
-plt.title('Undersampling data')
+    return cv_results['test_score'].mean(), cv_results['test_score'].std()
+
+rus = RandomUnderSampler(
+        sampling_strategy='auto',
+        random_state=0,
+        replacement=False)
+
+pr_mean_dict = {}
+pr_std_dict = {}
+
+for dataset in datasets_ls:
+
+    pr_mean_dict[dataset] = {}
+    pr_std_dict[dataset] = {}
+
+    print(dataset)
+
+    data = fetch_datasets()[dataset]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        data.data,
+        data.target,
+        test_size=0.3,
+        random_state=0,
+    )
+
+    aps_mean, aps_std = run_model(X_train, y_train)
+    pr_mean_dict[dataset]['full_data'] = aps_mean
+    pr_std_dict[dataset]['full_data'] = aps_std
+
+    aps_mean, aps_std = run_model(X_train, y_train, rus)
+
+    pr_mean_dict[dataset]['rus'] = aps_mean
+    pr_std_dict[dataset]['rus'] = aps_std
+
+for dataset in datasets_ls:
+
+    pr_mean_s = pd.Series(pr_mean_dict[dataset])
+    pr_std_s = pd.Series(pr_std_dict[dataset])
+
+    pr_mean_s.plot.bar(yerr=[pr_std_s, pr_std_s]
+        )
+    plt.title(dataset)
+    plt.ylabel('Average Precision')
+    plt.axhline(pr_mean_dict[dataset]['full_data'], color='r')
+    plt.show()
 
