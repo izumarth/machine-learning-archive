@@ -13,8 +13,9 @@ import seaborn as sns
 
 from sklearn.datasets import make_blobs
 from imblearn.over_sampling import RandomOverSampler
+from imblearn.over_sampling import SMOTE
 
-blobs_random_seed = 42
+from imblearn.over_sampling import SMOTEblobs_random_seed = 42
 centers = [(0, 0), (5, 5)]
 cluster_std = 1.5
 num_features_for_samples = 2
@@ -67,5 +68,134 @@ sns.scatterplot(
 )
 
 plt.title('Toy dataset')
+plt.show()
+
+"""# Random Over-sampling wiht Smoothing"""
+
+for shrink in [0, 0.5, 1, 10]:
+
+  ros = RandomOverSampler(
+      sampling_strategy='auto',
+      random_state=42,
+      shrinkage = shrink
+  )
+
+  X_res, y_res = ros.fit_resample(X, y)
+
+  sns.scatterplot(
+      data=X_res, x="VarA", y="VarB", hue=y_res, alpha=0.5
+  )
+
+  plt.title(f'Over Sampling shrink={shrink}')
+  plt.show()
+
+"""### Mutii class"""
+
+# Create some toy data
+
+# Configuration options
+blobs_random_seed = 42
+centers = [(0, 0), (5, 5), [-1, 5]]
+cluster_std = 1.5
+num_features_for_samples = 2
+num_samples_total = 1600
+
+# Generate X
+X, y = make_blobs(
+    n_samples=num_samples_total,
+    centers=centers,
+    n_features=num_features_for_samples,
+    cluster_std=cluster_std,
+)
+
+# transform arrays to pandas formats
+X = pd.DataFrame(X, columns=['VarA', 'VarB'])
+y = pd.Series(y)
+
+# create an imbalancced Xset
+# (make blobs creates same number of obs per class
+# we need to downsample manually)
+X = pd.concat([
+    X[y == 0],
+    X[y == 1].sample(100, random_state=42),
+    X[y == 2].sample(100, random_state=42)
+], axis=0)
+
+y = y.loc[X.index]
+
+sns.scatterplot(
+    data=X, x="VarA", y="VarB", hue=y, alpha=0.5
+)
+
+plt.title('Toy dataset')
+plt.show()
+
+y.value_counts()
+
+for shrink in [0, 0.5, 1, 10]:
+
+  ros = RandomOverSampler(
+      sampling_strategy='auto',
+      random_state=42,
+      shrinkage = shrink
+  )
+
+  X_res, y_res = ros.fit_resample(X, y)
+
+  sns.scatterplot(
+      data=X_res, x="VarA", y="VarB", hue=y_res, alpha=0.5
+  )
+
+  plt.title(f'Over Sampling shrink={shrink}')
+  plt.show()
+
+ros = RandomOverSampler(
+      sampling_strategy={1:500, 2:500},
+      random_state=42,
+      shrinkage = {1:1, 2:0.5}
+  )
+
+  X_res, y_res = ros.fit_resample(X, y)
+
+  sns.scatterplot(
+      data=X_res, x="VarA", y="VarB", hue=y_res, alpha=0.5
+  )
+
+  plt.title(f'Over Sampling another shrink')
+  plt.show()
+
+"""# SMOTE
+
+- RandomでPoint選定
+- kNNで直近に複数サンプル選定
+- イメージとしてはその間に新しいポイントを作成する（数式割愛）
+"""
+
+sm = SMOTE(
+    sampling_strategy='auto',  # samples only the minority class
+    random_state=0,  # for reproducibility
+    k_neighbors=5,
+)
+
+X_res, y_res = sm.fit_resample(X, y)
+
+X.shape, y.shape
+
+X_res.shape, y_res.shape
+
+y.value_counts(), y_res.value_counts()
+
+sns.scatterplot(
+    data=X, x="VarA", y="VarB", hue=y, alpha=0.5
+)
+
+plt.title('Original dataset')
+plt.show()
+
+sns.scatterplot(
+    data=X_res, x="VarA", y="VarB", hue=y_res, alpha=0.5
+)
+
+plt.title('SMOTE dataset')
 plt.show()
 
